@@ -25,20 +25,6 @@ public class ContinerTest
     private Container c;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
-    private static async Task TestArgumentInvalidAbsolutePathExceptionAsync<T>(Func<string, Task<T>> func)
-    {
-        await Assert.ThrowsExceptionAsync<ArgumentInvalidAbsolutePathException>(() =>
-            func(TestSample.INVALID_DIR_PATH)
-        );
-    }
-
-    private static void TestArgumentInvalidAbsolutePathException<T>(Func<string, T> func)
-    {
-        Assert.ThrowsException<ArgumentInvalidAbsolutePathException>(() =>
-            func(TestSample.INVALID_DIR_PATH)
-        );
-    }
-
     [TestMethod]
     public async Task GetFilePathsAsync()
     {
@@ -107,9 +93,9 @@ public class ContinerTest
     {
         await TestArgumentInvalidAbsolutePathExceptionAsync(c.TouchAsync);
 
-        Assert.IsNull(c.GetFile(NOT_EXIST_FILE_PATH));
+        AssertNotExist(NOT_EXIST_FILE_PATH);
         var touched = await c.TouchAsync(NOT_EXIST_FILE_PATH);
-        Assert.IsNotNull(c.GetFile(NOT_EXIST_FILE_PATH));
+        AssertExist(NOT_EXIST_FILE_PATH);
         var interval = (touched.createDateTime - touched.modifiedDateTime).Duration();
         // 초단위 미만(ns)에서는 다를 수 있음.
         Assert.IsTrue(interval < TimeSpan.FromSeconds(1));
@@ -136,7 +122,7 @@ public class ContinerTest
         };
         var stream = new MemoryStream(src);
 
-        Assert.IsNull(c.GetFile(NOT_EXIST_FILE_PATH));
+        AssertNotExist(NOT_EXIST_FILE_PATH);
         var file = await c.WriteFileAsync(NOT_EXIST_FILE_PATH, stream, true);
         var content = c.ReadFile(file);
         Assert.IsTrue(src.SequenceEqual(content.data));
@@ -152,4 +138,67 @@ public class ContinerTest
         content = c.ReadFile(file);
         Assert.IsTrue(src.SequenceEqual(content.data));
     }
+
+    [TestMethod]
+    public async Task MoveAsync()
+    {
+        AssertExist(TEST_FILE_PATH);
+        AssertNotExist(NOT_EXIST_FILE_PATH);
+
+        await Assert.ThrowsExceptionAsync<NotFoundException>(() =>
+            c.MoveAsync(NOT_EXIST_FILE_PATH, TEST_FILE_PATH)
+        );
+        await Assert.ThrowsExceptionAsync<AlreadyExistsException>(() =>
+            c.MoveAsync(TEST_FILE_PATH, TEST_FILE_PATH)
+        );
+
+        var file = await c.MoveAsync(TEST_FILE_PATH, NOT_EXIST_FILE_PATH);
+        Assert.AreEqual(NOT_EXIST_FILE_PATH, file.filePath);
+        AssertExist(NOT_EXIST_FILE_PATH);
+        AssertNotExist(TEST_FILE_PATH);
+    }
+
+    [TestMethod]
+    public async Task DeleteAsync()
+    {
+        var src = AssertExist(TEST_FILE_PATH);
+        var fileContent = c.ReadFile(src);
+        var deletedFile = await c.DeleteAsync(TEST_FILE_PATH);
+        Assert.AreEqual(src.filePath, deletedFile.filePath);
+        Assert.AreEqual(src.id, deletedFile.id);
+        AssertNotExist(TEST_FILE_PATH);
+        // make sure no content
+        Assert.ThrowsException<NotFoundException>(() =>
+            c.ReadFile(deletedFile)
+        );
+    }
+
+    #region test helpers
+
+    private static async Task TestArgumentInvalidAbsolutePathExceptionAsync<T>(Func<string, Task<T>> func)
+    {
+        await Assert.ThrowsExceptionAsync<ArgumentInvalidAbsolutePathException>(() =>
+            func(TestSample.INVALID_DIR_PATH)
+        );
+    }
+
+    private static void TestArgumentInvalidAbsolutePathException<T>(Func<string, T> func)
+    {
+        Assert.ThrowsException<ArgumentInvalidAbsolutePathException>(() =>
+            func(TestSample.INVALID_DIR_PATH)
+        );
+    }
+
+    private sfms.File AssertExist(string absoluteFilePath)
+    {
+        var file = c.GetFile(absoluteFilePath);
+        Assert.IsNotNull(file);
+        return file;
+    }
+
+    private void AssertNotExist(string absoluteFilePath)
+    {
+        Assert.IsNull(c.GetFile(absoluteFilePath));
+    }
+    #endregion
 }

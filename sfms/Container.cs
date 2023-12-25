@@ -118,6 +118,55 @@ public class Container
         return file;
     }
 
+    public async Task<File> MoveAsync(string srcAbsolutePath, string dstAbsolutePath)
+    {
+        var src = GetFile(srcAbsolutePath)
+            ?? throw new NotFoundException($"file not found({srcAbsolutePath})");
+        if (GetFile(dstAbsolutePath) is not null)
+            throw new AlreadyExistsException($"${dstAbsolutePath} already exists");
+        src.filePath = dstAbsolutePath;
+        if (await conn.UpdateAsync(src) != 1)
+            throw new DatabaseFailedException("failed to update for file move");
+        return src;
+    }
+
+    public File Move(string srcAbsolutePath, string dstAbsolutePath)
+    {
+        var src = GetFile(srcAbsolutePath)
+            ?? throw new NotFoundException($"file not found({srcAbsolutePath})");
+        if (GetFile(dstAbsolutePath) is not null)
+            throw new AlreadyExistsException($"${dstAbsolutePath} already exists");
+        src.filePath = dstAbsolutePath;
+        if (conn.GetConnection().Update(src) != 1)
+            throw new DatabaseFailedException("failed to update for file move");
+        return src;
+    }
+
+    public async Task<File> DeleteAsync(string absoluteFilePath)
+    {
+        var file = await GetFileAsync(absoluteFilePath)
+            ?? throw new NotFoundException($"file not found : {absoluteFilePath}");
+        await conn.RunInTransactionAsync(c =>
+        {
+            c.Delete(file);
+            c.Table<FileContent>().Delete(x => x.fileId == file.id);
+        });
+        return file;
+    }
+
+    public File Delete(string absoluteFilePath)
+    {
+        var file = GetFile(absoluteFilePath)
+            ?? throw new NotFoundException($"file not found : {absoluteFilePath}");
+
+        var c = conn.GetConnection();
+        c.RunInTransaction(() =>
+        {
+            c.Delete(file);
+            c.Table<FileContent>().Delete(x => x.fileId == file.id);
+        });
+        return file;
+    }
 
     #region internal helpers
 

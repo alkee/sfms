@@ -36,6 +36,7 @@ public class FileContent
     [PrimaryKey, AutoIncrement]
     public long id { get; set; } = 0;
 
+    // TODO: 직접 잠조하지 않고 link 방식 으로(refcounting)
     [Indexed(Unique = true)]
     public long fileId { get; set; } = 0;
     public byte[] data { get; set; } = Array.Empty<byte>();
