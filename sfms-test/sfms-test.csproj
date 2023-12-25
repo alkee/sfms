@@ -20,4 +20,8 @@
     <ProjectReference Include="..\sfms\sfms.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="**\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

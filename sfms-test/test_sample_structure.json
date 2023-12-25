@@ -1,0 +1,16 @@
+{
+    "files": {
+        "/aa/bb/a.empty": {
+            "content": []
+        },
+        "/aa/bb/a.1": {
+            "content": [
+                1,
+                2,
+                3
+            ]
+        },
+        "/bb/cc/a.a": {},
+        "/bb/b.b": {}
+    }
+}
