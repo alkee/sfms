@@ -8,7 +8,10 @@ public class ContinerTest
     const string SAMPLE_SOURCE = "test_sample_structure.json";
     const string TEST_DIR_PATH = "/aa/bb";
     const string TEST_FILE_PATH = "/aa/bb/a.1";
+    const long TEST_FILE_SIZE = 3;
     const string NOT_EXIST_DIR_PATH = "/xx/yy/zz";
+    const string NOT_EXIST_FILE_PATH = $"{TEST_DIR_PATH}/a.2";
+    const string NOT_EXIST_DIR_FILE_PATH = $"{NOT_EXIST_DIR_PATH}/a.2";
 
     [TestInitialize]
     public void TestInitialize()
@@ -73,30 +76,80 @@ public class ContinerTest
         Assert.AreEqual(sample.CountOriginalFiles(TEST_DIR_PATH), files.Count);
     }
 
+    // 일단 test 코드도 계속 바뀔 수 있으므로
+    //  async 함수 위주로 테스트 작성. 추후에 안정화 되면 sync 테스트 추가
 
+    [TestMethod]
+    public async Task GetFileAsync()
+    {
+        await TestArgumentInvalidAbsolutePathExceptionAsync(c.GetFileAsync);
 
-    // [TestMethod]
-    // public async Task TouchAsync()
-    // {
-    //     const string INVALID_FILE_PATH = "invalid.ext";
-    //     const string TEST_FILE_PATH = $"{TEST_DIR_PATH}/sample.ext";
+        var notExist = await c.GetFileAsync(NOT_EXIST_FILE_PATH);
+        Assert.IsNull(notExist);
+        var file = await c.GetFileAsync(TEST_FILE_PATH);
+        Assert.IsNotNull(file);
+        Assert.AreEqual(TEST_FILE_SIZE, file.originalFileSize);
+    }
 
-    //     await Assert.ThrowsExceptionAsync<ArgumentInvalidAbsolutePathException>(() =>
-    //         c.TouchAsync(INVALID_FILE_PATH)
-    //     );
+    [TestMethod]
+    public async Task ReadFileAsync()
+    {
+        var original = sample.GetOriginalFileContent(TEST_FILE_PATH)!;
+        var file = await c.GetFileAsync(TEST_FILE_PATH);
+        Assert.IsNotNull(file);
+        var content = await c.ReadFileAsync(file);
+        Assert.IsNotNull(file);
+        Assert.IsTrue(original.SequenceEqual(content.data));
+    }
 
-    //     var touched = await c.TouchAsync(TEST_FILE_PATH);
-    //     Assert.AreNotEqual(null, touched);
-    //     Assert.AreEqual(0, touched!.originalFileSize);
-    //     var interval = (touched.createDateTime - touched.modifiedDateTime).Duration();
-    //     Assert.IsTrue(interval < TimeSpan.FromSeconds(1));
+    [TestMethod]
+    public async Task TouchAsync_Create()
+    {
+        await TestArgumentInvalidAbsolutePathExceptionAsync(c.TouchAsync);
 
-    //     // touch again
-    //     await Task.Delay(TimeSpan.FromSeconds(2));
-    //     touched = await c.TouchAsync(TEST_FILE_PATH);
+        Assert.IsNull(c.GetFile(NOT_EXIST_FILE_PATH));
+        var touched = await c.TouchAsync(NOT_EXIST_FILE_PATH);
+        Assert.IsNotNull(c.GetFile(NOT_EXIST_FILE_PATH));
+        var interval = (touched.createDateTime - touched.modifiedDateTime).Duration();
+        // 초단위 미만(ns)에서는 다를 수 있음.
+        Assert.IsTrue(interval < TimeSpan.FromSeconds(1));
+    }
 
-    //     Assert.AreNotEqual(touched!.createDateTime, touched.modifiedDateTime);
-    //     interval = (touched.createDateTime - touched.modifiedDateTime).Duration();
-    //     Assert.IsTrue(interval >= TimeSpan.FromSeconds(2));
-    // }
+    [TestMethod]
+    public async Task TouchAsync_ModifiedDateTime()
+    {
+        const double DELAY_SECONDS = 1;
+        await TestArgumentInvalidAbsolutePathExceptionAsync(c.TouchAsync);
+
+        await Task.Delay(TimeSpan.FromSeconds(DELAY_SECONDS));
+        var touched = await c.TouchAsync(TEST_FILE_PATH);
+        Assert.AreNotEqual(touched!.createDateTime, touched.modifiedDateTime);
+        var interval = (touched.createDateTime - touched.modifiedDateTime).Duration();
+        Assert.IsTrue(interval >= TimeSpan.FromSeconds(DELAY_SECONDS));
+    }
+
+    [TestMethod]
+    public async Task WriteFileAsync()
+    {
+        var src = new byte[] {
+            0x11, 0xcf, 0xd1, 0x04,
+        };
+        var stream = new MemoryStream(src);
+
+        Assert.IsNull(c.GetFile(NOT_EXIST_FILE_PATH));
+        var file = await c.WriteFileAsync(NOT_EXIST_FILE_PATH, stream, true);
+        var content = c.ReadFile(file);
+        Assert.IsTrue(src.SequenceEqual(content.data));
+
+        // valdidate overwriting environment
+        var otherFile = c.GetFile(TEST_FILE_PATH);
+        Assert.IsNotNull(otherFile);
+        var otherContent = c.ReadFile(otherFile);
+        Assert.IsFalse(src.SequenceEqual(otherContent.data));
+
+        // test overwriting
+        file = await c.WriteFileAsync(NOT_EXIST_FILE_PATH, stream, true);
+        content = c.ReadFile(file);
+        Assert.IsTrue(src.SequenceEqual(content.data));
+    }
 }

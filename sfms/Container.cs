@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Reflection;
 using SQLite;
 namespace sfms;
@@ -62,21 +61,17 @@ public class Container
         return conn.GetConnection().Find<File>(x => x.filePath == absoluteFilePath);
     }
 
-    public async Task<FileContent> GetFileContentAsync(File file)
+    public async Task<FileContent> ReadFileAsync(File file)
     {
         return await conn.FindAsync<FileContent>(x => x.fileId == file.id)
             ?? throw new NotFoundException($"file not found({file.id}) : {file.filePath}");
     }
 
-    public FileContent GetFileContent(File file)
+    public FileContent ReadFile(File file)
     {
         return conn.GetConnection().Find<FileContent>(x => x.fileId == file.id)
             ?? throw new NotFoundException($"file not found({file.id}) : {file.filePath}");
     }
-
-    // public async Task<File> ReplaceContentAsync(File file, FileContent content)
-    // {
-    // }
 
     public async Task<File> TouchAsync(string absoluteFilePath)
     {
@@ -109,7 +104,22 @@ public class Container
         return file;
     }
 
+    public async Task<File> WriteFileAsync(string absoluteFilePath, Stream content, bool preserveStreamPosition = false)
+    {
+        var file = await TouchAsync(absoluteFilePath); // argumentexception 포함
+        WriteFileContent(file, content, preserveStreamPosition);
+        return file;
+    }
 
+    public File WriteFile(string absoluteFilePath, Stream content, bool preserveStreamPosition = false)
+    {
+        var file = Touch(absoluteFilePath);
+        WriteFileContent(file, content, preserveStreamPosition);
+        return file;
+    }
+
+
+    #region internal helpers
 
     private async Task<File> CreateEmptyFileAsync(string absoluteFilePath)
     {
@@ -131,6 +141,66 @@ public class Container
         if (file.id == 0)
             throw new DatabaseFailedException("failed to create empty file");
         return file;
+    }
+
+    private FileContent WriteFileContent(File file, Stream content, bool preserveStreamPosition)
+    {
+        if (preserveStreamPosition && content.CanSeek == false)
+            throw new ArgumentException("not supoprted stream", nameof(preserveStreamPosition));
+        var originalPosition = preserveStreamPosition ? content.Position : 0;
+        try
+        {
+            var fileContent = ReadFile(file);
+            fileContent.data = ReadToEnd(content);
+            file.modifiedDateTime = DateTime.UtcNow;
+            file.originalFileSize = fileContent.data.Length;
+            var c = conn.GetConnection();
+            c.RunInTransaction(() =>
+            {
+                // sqlite 는 serialized mode(https://www.sqlite.org/threadsafe.html) 에서 동작하니 deadlock 문제는 없겠지만
+                // 항상 trasaction 내에서 File -> FileContent 순서로 접근
+                c.Update(file);
+                c.Update(fileContent);
+            });
+            return fileContent;
+        }
+        finally
+        {
+            if (preserveStreamPosition)
+                content.Position = originalPosition;
+        }
+    }
+
+    private static byte[] ReadToEnd(Stream stream)
+    { // https://stackoverflow.com/a/1080445
+        var readBuffer = new byte[4096];
+        int totalBytesRead = 0;
+        int bytesRead;
+
+        while ((bytesRead = stream.Read(readBuffer, totalBytesRead, readBuffer.Length - totalBytesRead)) > 0)
+        {
+            totalBytesRead += bytesRead;
+            if (totalBytesRead == readBuffer.Length)
+            {
+                int nextByte = stream.ReadByte();
+                if (nextByte != -1)
+                {
+                    byte[] temp = new byte[readBuffer.Length * 2];
+                    Buffer.BlockCopy(readBuffer, 0, temp, 0, readBuffer.Length);
+                    Buffer.SetByte(temp, totalBytesRead, (byte)nextByte);
+                    readBuffer = temp;
+                    totalBytesRead++;
+                }
+            }
+        }
+
+        byte[] buffer = readBuffer;
+        if (readBuffer.Length != totalBytesRead)
+        {
+            buffer = new byte[totalBytesRead];
+            Buffer.BlockCopy(readBuffer, 0, buffer, 0, totalBytesRead);
+        }
+        return buffer;
     }
 
     private File CreateEmptyFile(string absoluteFilePath)
@@ -186,6 +256,7 @@ public class Container
         conn.CreateTables(CreateFlags.None, tables.ToArray());
         // TODO: 결과 처리(logging / exception)
     }
+    #endregion
 
     private readonly SQLiteAsyncConnection conn;
 }

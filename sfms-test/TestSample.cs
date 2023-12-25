@@ -21,8 +21,16 @@ internal class TestSample
         var sample = new Container(dbPath, true);
 
         foreach (var f in files)
-        { // TODO: content 추가할수 있을 때
-            sample.Touch(f.Key);
+        {
+            var v = f.Value;
+            if (!v.HasValues)
+            { // no information
+                sample.Touch(f.Key);
+                continue;
+            }
+            var content = GetOriginalFileContent(f.Key);
+            var stream = new MemoryStream(content!);
+            sample.WriteFile(f.Key, stream);
         }
         return sample;
     }
@@ -35,6 +43,15 @@ internal class TestSample
             count += f.Key.StartsWith(startsWith) ? 1 : 0;
         }
         return count;
+    }
+
+    public byte[]? GetOriginalFileContent(string path)
+    {
+        var file = files[path];
+        if (file is null) return null;
+        var contentObj = file["content"];
+        if (contentObj is null) return Array.Empty<byte>();
+        return contentObj.Values<byte>().ToArray();
     }
 
     private readonly JObject files;
