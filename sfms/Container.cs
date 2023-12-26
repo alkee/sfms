@@ -50,6 +50,7 @@ public class Container
     public async Task<File?> GetFileAsync(string absoluteFilePath)
     {
         ArgumentInvalidAbsolutePathException.Validate(absoluteFilePath, nameof(absoluteFilePath));
+        ArgumentInvalidFileNameException.Validate(absoluteFilePath, nameof(absoluteFilePath));
 
         return await conn.FindAsync<File>(x => x.filePath == absoluteFilePath);
     }
@@ -57,6 +58,7 @@ public class Container
     public File? GetFile(string absoluteFilePath)
     {
         ArgumentInvalidAbsolutePathException.Validate(absoluteFilePath, nameof(absoluteFilePath));
+        ArgumentInvalidFileNameException.Validate(absoluteFilePath, nameof(absoluteFilePath));
 
         return conn.GetConnection().Find<File>(x => x.filePath == absoluteFilePath);
     }
@@ -76,6 +78,7 @@ public class Container
     public async Task<File> TouchAsync(string absoluteFilePath)
     {
         ArgumentInvalidAbsolutePathException.Validate(absoluteFilePath, nameof(absoluteFilePath));
+        ArgumentInvalidFileNameException.Validate(absoluteFilePath, nameof(absoluteFilePath));
 
         var file = await GetFileAsync(absoluteFilePath);
         if (file is null)
@@ -91,6 +94,7 @@ public class Container
     public File Touch(string absoluteFilePath)
     {
         ArgumentInvalidAbsolutePathException.Validate(absoluteFilePath, nameof(absoluteFilePath));
+        ArgumentInvalidFileNameException.Validate(absoluteFilePath, nameof(absoluteFilePath));
 
         var file = GetFile(absoluteFilePath);
         if (file is null)
@@ -106,6 +110,8 @@ public class Container
 
     public async Task<File> WriteFileAsync(string absoluteFilePath, Stream content, bool preserveStreamPosition = false)
     {
+        ArgumentInvalidFileNameException.Validate(absoluteFilePath, nameof(absoluteFilePath));
+
         var file = await TouchAsync(absoluteFilePath); // argumentexception 포함
         WriteFileContent(file, content, preserveStreamPosition);
         return file;
@@ -113,6 +119,8 @@ public class Container
 
     public File WriteFile(string absoluteFilePath, Stream content, bool preserveStreamPosition = false)
     {
+        ArgumentInvalidFileNameException.Validate(absoluteFilePath, nameof(absoluteFilePath));
+
         var file = Touch(absoluteFilePath);
         WriteFileContent(file, content, preserveStreamPosition);
         return file;
@@ -144,6 +152,8 @@ public class Container
 
     public async Task<File> DeleteAsync(string absoluteFilePath)
     {
+        ArgumentInvalidFileNameException.Validate(absoluteFilePath, nameof(absoluteFilePath));
+
         var file = await GetFileAsync(absoluteFilePath)
             ?? throw new NotFoundException($"file not found : {absoluteFilePath}");
         await conn.RunInTransactionAsync(c =>
@@ -156,6 +166,8 @@ public class Container
 
     public File Delete(string absoluteFilePath)
     {
+        ArgumentInvalidFileNameException.Validate(absoluteFilePath, nameof(absoluteFilePath));
+
         var file = GetFile(absoluteFilePath)
             ?? throw new NotFoundException($"file not found : {absoluteFilePath}");
 
@@ -254,6 +266,8 @@ public class Container
 
     private File CreateEmptyFile(string absoluteFilePath)
     {
+        ArgumentInvalidFileNameException.Validate(absoluteFilePath, nameof(absoluteFilePath));
+
         var file = new File
         {
             filePath = absoluteFilePath,
@@ -274,7 +288,6 @@ public class Container
             throw new DatabaseFailedException("failed to create empty file");
         return file;
     }
-
 
     private static string MakeSureDirTail(string dirPath)
     {

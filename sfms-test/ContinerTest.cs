@@ -69,6 +69,7 @@ public class ContinerTest
     public async Task GetFileAsync()
     {
         await TestArgumentInvalidAbsolutePathExceptionAsync(c.GetFileAsync);
+        await TestArgumentInvalidFileNameExceptionAsync(c.GetFileAsync);
 
         var notExist = await c.GetFileAsync(NOT_EXIST_FILE_PATH);
         Assert.IsNull(notExist);
@@ -92,6 +93,7 @@ public class ContinerTest
     public async Task TouchAsync_Create()
     {
         await TestArgumentInvalidAbsolutePathExceptionAsync(c.TouchAsync);
+        await TestArgumentInvalidFileNameExceptionAsync(c.TouchAsync);
 
         AssertNotExist(NOT_EXIST_FILE_PATH);
         var touched = await c.TouchAsync(NOT_EXIST_FILE_PATH);
@@ -161,6 +163,8 @@ public class ContinerTest
     [TestMethod]
     public async Task DeleteAsync()
     {
+        await TestArgumentInvalidFileNameExceptionAsync(c.DeleteAsync);
+
         var src = AssertExist(TEST_FILE_PATH);
         var fileContent = c.ReadFile(src);
         var deletedFile = await c.DeleteAsync(TEST_FILE_PATH);
@@ -188,6 +192,21 @@ public class ContinerTest
             func(TestSample.INVALID_DIR_PATH)
         );
     }
+
+    private static async Task TestArgumentInvalidFileNameExceptionAsync<T>(Func<string, Task<T>> func)
+    {
+        await Assert.ThrowsExceptionAsync<ArgumentInvalidFileNameException>(() =>
+            func(TestSample.END_WITH_SLASH_PATH)
+        );
+    }
+
+    private static void TestArgumentInvalidFileNameException<T>(Func<string, T> func)
+    {
+        Assert.ThrowsException<ArgumentInvalidFileNameException>(() =>
+            func(TestSample.END_WITH_SLASH_PATH)
+        );
+    }
+
 
     private sfms.File AssertExist(string absoluteFilePath)
     {

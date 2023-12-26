@@ -33,3 +33,16 @@ public class ArgumentInvalidAbsolutePathException : ArgumentException
             throw new ArgumentInvalidAbsolutePathException(inputPath, paramName);
     }
 }
+
+public class ArgumentInvalidFileNameException : ArgumentException
+{
+    public ArgumentInvalidFileNameException(string inputName, string paramName) : base($"invalid file name : {inputName}", paramName)
+    {
+    }
+
+    public static void Validate(string inputPath, string paramName)
+    {
+        if (inputPath.EndsWith(File.DIRECTORY_SEPARATOR))
+            throw new ArgumentInvalidFileNameException(inputPath, paramName);
+    }
+}

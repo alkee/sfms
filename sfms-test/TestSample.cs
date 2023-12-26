@@ -7,6 +7,7 @@ namespace sfms_test;
 internal class TestSample
 {
     public const string INVALID_DIR_PATH = "not absolute/path/";
+    public const string END_WITH_SLASH_PATH = "/absolute/path/";
     public TestSample(string jsonFilePath)
     {
         var json = System.IO.File.ReadAllText(jsonFilePath);
