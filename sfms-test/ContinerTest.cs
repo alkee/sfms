@@ -126,6 +126,7 @@ public class ContinerTest
 
         AssertNotExist(NOT_EXIST_FILE_PATH);
         var file = await c.WriteFileAsync(NOT_EXIST_FILE_PATH, stream, true);
+        Assert.AreEqual(src.Length, file.originalFileSize);
         var content = c.ReadFile(file);
         Assert.IsTrue(src.SequenceEqual(content.data));
 
@@ -137,6 +138,7 @@ public class ContinerTest
 
         // test overwriting
         file = await c.WriteFileAsync(NOT_EXIST_FILE_PATH, stream, true);
+        Assert.AreEqual(src.Length, file.originalFileSize);
         content = c.ReadFile(file);
         Assert.IsTrue(src.SequenceEqual(content.data));
     }

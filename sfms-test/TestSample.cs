@@ -3,7 +3,6 @@ using sfms;
 
 namespace sfms_test;
 
-
 internal class TestSample
 {
     public const string INVALID_DIR_PATH = "not absolute/path/";
