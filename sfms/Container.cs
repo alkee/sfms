@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using SQLite;
 namespace sfms;
@@ -177,6 +178,30 @@ public class Container
             c.Delete(file);
             c.Table<FileContent>().Delete(x => x.fileId == file.id);
         });
+        return file;
+    }
+
+    public async Task<File> SetMetaAsync(string absoluteFilePath, string meta = "")
+    {
+        ArgumentInvalidFileNameException.Validate(absoluteFilePath, nameof(absoluteFilePath));
+
+        var file = await GetFileAsync(absoluteFilePath)
+            ?? throw new NotFoundException($"file not found : {absoluteFilePath}");
+        file.meta = meta;
+        if (await conn.UpdateAsync(file) != 1)
+            throw new DatabaseFailedException($"failed to update for meta : {absoluteFilePath}");
+        return file;
+    }
+
+    public File SetMeta(string absoluteFilePath, string meta = "")
+    {
+        ArgumentInvalidFileNameException.Validate(absoluteFilePath, nameof(absoluteFilePath));
+
+        var file = GetFile(absoluteFilePath)
+            ?? throw new NotFoundException($"file not found : {absoluteFilePath}");
+        file.meta = meta;
+        if (conn.GetConnection().Update(file) != 1)
+            throw new DatabaseFailedException($"failed to update for meta : {absoluteFilePath}");
         return file;
     }
 

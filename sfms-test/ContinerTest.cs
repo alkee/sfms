@@ -177,6 +177,26 @@ public class ContinerTest
         );
     }
 
+    [TestMethod]
+    public async Task SetMetaAsync()
+    {
+        await Assert.ThrowsExceptionAsync<NotFoundException>(() =>
+            c.SetMetaAsync(NOT_EXIST_FILE_PATH)
+        );
+        const string META = "blabla";
+        var file = await c.GetFileAsync(TEST_FILE_PATH);
+        Assert.IsNotNull(file);
+        Assert.AreEqual(string.Empty, file.meta);
+
+        file = await c.SetMetaAsync(TEST_FILE_PATH, META);
+        Assert.IsNotNull(file);
+        Assert.AreEqual(META, file.meta);
+
+        file = await c.GetFileAsync(TEST_FILE_PATH);
+        Assert.IsNotNull(file);
+        Assert.AreEqual(META, file.meta);
+    }
+
     #region test helpers
 
     private static async Task TestArgumentInvalidAbsolutePathExceptionAsync<T>(Func<string, Task<T>> func)

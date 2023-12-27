@@ -25,7 +25,7 @@ public class File
     public string filePath { get; set; } = "";
     public string checksum { get; set; } = "";
     public long originalFileSize { get; set; } // 압축되어있는 경우 등 length(data) 와 다를 수 있음
-    public string attributeJson { get; set; } = ""; // 외부용 확장 정보
+    public string meta { get; set; } = ""; // 외부용 확장 정보
 
     public const char DIRECTORY_SEPARATOR = '/';
 }
